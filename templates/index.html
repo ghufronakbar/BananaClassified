@@ -2,7 +2,7 @@
 block content %} {% endblock %} {% block react_script %}
 <script type="text/babel">
   function App() {
-    const [showModal, setShowModal] = React.useState(true);
+    const [showModal, setShowModal] = React.useState(false);
     const [checked, setChecked] = React.useState(false);
 
     React.useEffect(() => {
@@ -50,9 +50,9 @@ block content %} {% endblock %} {% block react_script %}
         <h1 className="text-3xl sm:text-4xl font-semibold text-foreground mb-2">
           BananaScanning
         </h1>
-        <h1 className="text-2xl sm:text-xl font-semibold text-foreground mb-2">
+        {/* <h1 className="text-2xl sm:text-xl font-semibold text-foreground mb-2">
           Klasifikasi Kesegaran Pisang
-        </h1>
+        </h1> */}
         <p className="text-sm text-muted-foreground max-w-md mb-6">
           Sistem klasifikasi cerdas untuk mengecek kesegaran pisang secara cepat
           dan akurat.

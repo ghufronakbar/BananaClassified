@@ -15,6 +15,12 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
     );
   }
 
+  const textResult = (isSegar, acc) => {
+    return `hasil klasifikasi: pisang ${
+      isSegar ? "segar" : "tidak segar"
+    }. akurasi model ${acc} persen. tekan kembali untuk unggah ulang`;
+  };
+
   function ScanPage() {
     const [imageURL, setImageURL] = React.useState(
       "{{ url_for('static', filename='default.jpg') }}"
@@ -34,12 +40,14 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
     });
 
     React.useEffect(() => {
+      const playSound = localStorage.getItem("playSound");
       if (page === "scan") {
-        const playSound = localStorage.getItem("playSound");
+        console.log("useEffect:", playSound);
         if (playSound === "true") {
           const utterance = new SpeechSynthesisUtterance(
-            "Silahkan unggah gambar melalui kamera maupun gallery"
+            "silahkan pilih gambar dari galeri atau ambil langsung dari kamera. tekan tombol unggah dan klasifikasi untuk mengetahui hasil prediksi"
           );
+          console.log({ utterance });
           utterance.lang = "id-ID";
           speechSynthesis.speak(utterance);
         }
@@ -136,15 +144,14 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
           const body = await response.json();
           setShowToast("Berhasil mengklasifikasikan!");
           setPage(body?.data?.isFresh ? "fresh" : "unfresh");
-          setAcc(Number(body?.data?.accuracy).toFixed(2));
+          setAcc(Number(body?.data?.accuracy * 100).toFixed(2));
           const playSound = localStorage.getItem("playSound");
           if (playSound === "true") {
             const utterance = new SpeechSynthesisUtterance(
-              body?.data?.isFresh
-                ? "Gambar Anda terklasifikasi sebagai pisang segar dengan akurasi " +
-                  Number(body?.data?.accuracy).toFixed(2)
-                : "Gambar Anda terklasifikasi sebagai pisang tidak segar dengan akurasi " +
-                  Number(body?.data?.accuracy).toFixed(2)
+              textResult(
+                body?.data?.isFresh,
+                Number(body?.data?.accuracy * 100).toFixed(2)
+              )
             );
             utterance.lang = "id-ID";
             speechSynthesis.speak(utterance);
@@ -163,11 +170,7 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
     const onPlaySound = () => {
       if (page === "scan" || !acc) return;
       const utterance = new SpeechSynthesisUtterance(
-        page === "fresh"
-          ? "Gambar Anda terklasifikasi sebagai pisang segar dengan akurasi " +
-            acc
-          : "Gambar Anda terklasifikasi sebagai pisang tidak segar dengan akurasi " +
-            acc
+        textResult(page === "fresh", acc)
       );
       utterance.lang = "id-ID";
       speechSynthesis.speak(utterance);
@@ -200,10 +203,6 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
               Hasil Prediksi
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground my-4">
-            Berikut adalah hasil prediksi kesegaran pisang.
-          </p>
-
           <div className="flex flex-col gap-4 px-4 py-4 w-full">
             <div className="rounded-md bg-muted p-4 flex items-center justify-center w-full border border-border">
               <img
@@ -221,13 +220,17 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
               >
                 Pisang {page === "fresh" ? "Segar" : "Tidak Segar"}
               </h4>
-              <p>Akurasi prediksi: {Number(acc) * 100}%</p>
+              <p>Akurasi prediksi: {acc}%</p>
             </div>
 
             <button
               onClick={onPlaySound}
-              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-teal-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-teal-600 border border-teal-600"
+              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-teal-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-teal-600 border border-teal-600 flex flex-row"
             >
+              <img
+                src="{{ url_for('static', filename='sound.png') }}"
+                className="w-6 h-6 mr-2"
+              />
               Putar Suara
             </button>
 
@@ -303,13 +306,15 @@ endblock %} {% block content %} {% endblock %} {% block react_script %}
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
                 height="24"
-                fill="currentColor"
+                fill="none"
                 viewBox="0 0 24 24"
               >
                 <path
-                  fillRule="evenodd"
-                  d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6Zm4.996 2a1 1 0 0 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Zm-4.004 3a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 11a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Zm-4.004 3a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 14a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Z"
-                  clipRule="evenodd"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 11H4m15.5 5a.5.5 0 0 0 .5-.5V8a1 1 0 0 0-1-1h-3.75a1 1 0 0 1-.829-.44l-1.436-2.12a1 1 0 0 0-.828-.44H8a1 1 0 0 0-1 1M4 9v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1h-3.75a1 1 0 0 1-.829-.44L9.985 8.44A1 1 0 0 0 9.157 8H5a1 1 0 0 0-1 1Z"
                 />
               </svg>
 
