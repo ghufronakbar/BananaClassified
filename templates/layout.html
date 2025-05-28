@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}My Flask React App{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- ✅ Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ✅ React & Babel CDN -->
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="module">
+      import reactIcons from "https://cdn.jsdelivr.net/npm/react-icons@5.5.0/+esm";
+    </script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-800">
+    <!-- Slot untuk konten HTML biasa -->
+    {% block content %}{% endblock %}
+
+    <!-- Slot untuk konten React -->
+
+    <div id="root" class=""></div>
+
+    <!-- Inline React/Babel Script -->
+    {% block react_script %}{% endblock %}
+  </body>
+</html>

@@ -1,0 +1,98 @@
+{% extends "layout.html" %} {% block title %}BananaScanning{% endblock %} {%
+block content %} {% endblock %} {% block react_script %}
+<script type="text/babel">
+  function App() {
+    const [showModal, setShowModal] = React.useState(true);
+    const [checked, setChecked] = React.useState(false);
+
+    React.useEffect(() => {
+      const storedChecked = localStorage.getItem("playSound");
+      if (storedChecked) {
+        setChecked(storedChecked === "true");
+      }
+    }, []);
+
+    const onCheck = (e) => {
+      setChecked(e?.target?.checked);
+      localStorage.setItem("playSound", e?.target?.checked?.toString());
+    };
+
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center px-4 max-w-xl mx-auto border border-border shadow bg-white">
+        {showModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-white border border-border rounded-xl shadow-lg max-w-md w-[90%] p-6 text-center space-y-4 animate-fade-in-down">
+              <h2 className="text-xl font-semibold text-foreground">
+                👋 Selamat Datang
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Selamat datang di{" "}
+                <span className="font-medium text-yellow-600">
+                  Sistem Klasifikasi Kesegaran Pisang
+                </span>
+                . Tekan tombol ‘Mulai’ untuk menggunakan aplikasi dan mulai
+                klasifikasi sekarang juga.
+              </p>
+              <button
+                onClick={() => setShowModal(false)}
+                className="inline-flex h-10 px-5 items-center justify-center rounded-md bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium transition-colors shadow"
+              >
+                Mulai
+              </button>
+            </div>
+          </div>
+        )}
+        <img
+          src="{{ url_for('static', filename='logo.png') }}"
+          alt="Logo BananaScanning"
+          className="w-20 h-20 sm:w-24 sm:h-24 mb-6 rounded-full border border-border shadow"
+        />
+        <h1 className="text-3xl sm:text-4xl font-semibold text-foreground mb-2">
+          BananaScanning
+        </h1>
+        <h1 className="text-2xl sm:text-xl font-semibold text-foreground mb-2">
+          Klasifikasi Kesegaran Pisang
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-md mb-6">
+          Sistem klasifikasi cerdas untuk mengecek kesegaran pisang secara cepat
+          dan akurat.
+        </p>
+        <a
+          href="/scan"
+          className="inline-flex h-10 px-6 items-center justify-center rounded-md bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium transition-colors shadow"
+        >
+          Mulai
+        </a>
+        <div className="flex flex-row gap-2 items-center mt-4">
+          <input
+            type="checkbox"
+            id="toggleSound"
+            className=""
+            checked={checked}
+            onChange={onCheck}
+          />
+          <p className="text-sm text-muted-foreground">
+            Aktifkan suara bantuan aplikasi
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Animasi masuk
+  const style = document.createElement("style");
+  style.innerHTML = `
+    @keyframes fade-in-down {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-down {
+      animation: fade-in-down 0.25s ease-out forwards;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<App />);
+</script>
+{% endblock %}

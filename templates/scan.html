@@ -1,0 +1,408 @@
+{% extends "layout.html" %} {% block title %}Input Gambar – BananaScanning{%
+endblock %} {% block content %} {% endblock %} {% block react_script %}
+<script type="text/babel">
+  function Toast({ message, onClose }) {
+    React.useEffect(() => {
+      const timer = setTimeout(onClose, 3000);
+      return () => clearTimeout(timer);
+    }, []);
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white border border-border shadow-lg rounded-md px-4 py-3 text-sm text-muted-foreground animate-fade-in-down">
+          {message}
+        </div>
+      </div>
+    );
+  }
+
+  function ScanPage() {
+    const [imageURL, setImageURL] = React.useState(
+      "{{ url_for('static', filename='default.jpg') }}"
+    );
+    const [loading, setLoading] = React.useState(false);
+    const [selectedFile, setSelectedFile] = React.useState(null);
+    const [showToast, setShowToast] = React.useState("");
+    const [isCameraActive, setIsCameraActive] = React.useState(false); // Track camera state
+    const videoRef = React.useRef(null); // Create ref for video element
+    const canvasRef = React.useRef(null);
+    // "scan" | "fresh" | "unfresh"
+    const [page, setPage] = React.useState("scan");
+    const [acc, setAcc] = React.useState(0);
+
+    React.useEffect(() => {
+      prepareCamera();
+    });
+
+    React.useEffect(() => {
+      if (page === "scan") {
+        const playSound = localStorage.getItem("playSound");
+        if (playSound === "true") {
+          const utterance = new SpeechSynthesisUtterance(
+            "Silahkan unggah gambar melalui kamera maupun gallery"
+          );
+          utterance.lang = "id-ID";
+          speechSynthesis.speak(utterance);
+        }
+      }
+    }, [page]);
+
+    const prepareCamera = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      console.log("Camera started.");
+      if (videoRef.current) {
+        console.log("Setting video source...");
+        videoRef.current.srcObject = stream;
+      }
+    };
+
+    // Start the camera stream
+    const toggleCamera = async () => {
+      try {
+        setIsCameraActive(!isCameraActive); // Activate the camera after successful stream
+      } catch (error) {
+        console.error("Error accessing camera: ", error);
+      }
+    };
+
+    // Capture image from the video stream and set selectedFile
+    const captureImage = () => {
+      const canvas = canvasRef.current;
+      const context = canvas.getContext("2d");
+      context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const image = canvas.toDataURL("image/png");
+
+      // Convert image (base64) to Blob
+      fetch(image)
+        .then((res) => res.blob())
+        .then((blob) => {
+          // Create a File from the Blob
+          const file = new File([blob], "captured-image.png", {
+            type: "image/png",
+          });
+          setSelectedFile(file);
+          setImageURL(URL.createObjectURL(file)); // Display image in preview
+        });
+
+      setIsCameraActive(false); // Optionally, stop the camera after capturing
+    };
+
+    const handleFileChange = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImageURL(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+      setIsCameraActive(false);
+    };
+
+    const handleSubmit = async () => {
+      console.log("Gambar siap diklasifikasikan:", selectedFile);
+      if (!selectedFile) {
+        setShowToast("Silakan pilih gambar terlebih dahulu!");
+        const playSound = localStorage.getItem("playSound");
+        if (playSound === "true") {
+          const utterance = new SpeechSynthesisUtterance(
+            "Silahkan pilih gambar terlebih dahulu"
+          );
+          utterance.lang = "id-ID";
+          speechSynthesis.speak(utterance);
+        }
+        return;
+      }
+      if (loading) {
+        return;
+      }
+      setLoading(true);
+      setShowToast("Loading...");
+      // Create a FormData object to send the image as a POST request
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+
+      setShowToast("Loading...");
+
+      try {
+        const response = await fetch("/scan", {
+          method: "POST",
+          body: formData,
+        });
+        console.log({ response });
+        if (response.ok) {
+          const body = await response.json();
+          setShowToast("Berhasil mengklasifikasikan!");
+          setPage(body?.data?.isFresh ? "fresh" : "unfresh");
+          setAcc(Number(body?.data?.accuracy).toFixed(2));
+          const playSound = localStorage.getItem("playSound");
+          if (playSound === "true") {
+            const utterance = new SpeechSynthesisUtterance(
+              body?.data?.isFresh
+                ? "Gambar Anda terklasifikasi sebagai pisang segar dengan akurasi " +
+                  Number(body?.data?.accuracy).toFixed(2)
+                : "Gambar Anda terklasifikasi sebagai pisang tidak segar dengan akurasi " +
+                  Number(body?.data?.accuracy).toFixed(2)
+            );
+            utterance.lang = "id-ID";
+            speechSynthesis.speak(utterance);
+          }
+        } else {
+          throw new Error("Error uploading the image");
+        }
+      } catch (error) {
+        setShowToast("Terjadi kesalahan!");
+        console.error("Error uploading the image:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const onPlaySound = () => {
+      if (page === "scan" || !acc) return;
+      const utterance = new SpeechSynthesisUtterance(
+        page === "fresh"
+          ? "Gambar Anda terklasifikasi sebagai pisang segar dengan akurasi " +
+            acc
+          : "Gambar Anda terklasifikasi sebagai pisang tidak segar dengan akurasi " +
+            acc
+      );
+      utterance.lang = "id-ID";
+      speechSynthesis.speak(utterance);
+    };
+
+    const onCancle = () => {
+      setIsCameraActive(false);
+      setSelectedFile(null);
+      setImageURL("{{ url_for('static', filename='default.jpg') }}");
+    };
+
+    const onBackToScan = () => {
+      setIsCameraActive(false);
+      setSelectedFile(null);
+      setImageURL("{{ url_for('static', filename='default.jpg') }}");
+      setPage("scan");
+    };
+
+    if (page !== "scan") {
+      return (
+        <div className="flex flex-col items-center min-h-screen text-center max-w-xl mx-auto border border-border shadow bg-white relative">
+          <div className="relative w-full flex flex-row items-center justify-center fixed top-0 py-2 border-b border-border shadow px-4 ">
+            <button
+              onClick={onBackToScan}
+              className="text-sm text-muted-foreground hover:text-foreground transition duration-300 ease-in-out flec-shrink-0 absolute left-4 top-1/2 transform -translate-y-1/2 text-6xl"
+            >
+              ←
+            </button>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Hasil Prediksi
+            </h1>
+          </div>
+          <p className="text-sm text-muted-foreground my-4">
+            Berikut adalah hasil prediksi kesegaran pisang.
+          </p>
+
+          <div className="flex flex-col gap-4 px-4 py-4 w-full">
+            <div className="rounded-md bg-muted p-4 flex items-center justify-center w-full border border-border">
+              <img
+                src={imageURL}
+                alt="Preview Gambar"
+                className="h-auto w-full object-cover rounded-md"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h4
+                className={`text-2xl font-semibold tracking-tight text-foreground ${
+                  page === "fresh" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                Pisang {page === "fresh" ? "Segar" : "Tidak Segar"}
+              </h4>
+              <p>Akurasi prediksi: {Number(acc) * 100}%</p>
+            </div>
+
+            <button
+              onClick={onPlaySound}
+              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-teal-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-teal-600 border border-teal-600"
+            >
+              Putar Suara
+            </button>
+
+            <button
+              onClick={onBackToScan}
+              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-red-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-red-600 border border-red-600"
+            >
+              Kembali
+            </button>
+          </div>
+
+          {!!showToast && (
+            <Toast message={showToast} onClose={() => setShowToast("")} />
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col items-center min-h-screen text-center max-w-xl mx-auto border border-border shadow bg-white relative">
+        <div className="relative w-full flex flex-row items-center justify-center fixed top-0 py-2 border-b border-border shadow px-4 ">
+          <a
+            href="/"
+            className="text-sm text-muted-foreground hover:text-foreground transition duration-300 ease-in-out flec-shrink-0 absolute left-4 top-1/2 transform -translate-y-1/2 text-6xl"
+          >
+            ←
+          </a>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Input Gambar
+          </h1>
+        </div>
+        <p className="text-sm text-muted-foreground my-4">
+          Unggah gambar pisang segar atau tidak segar untuk diklasifikasikan.
+        </p>
+
+        <div className="flex flex-col gap-4 px-4 py-4 w-full">
+          <div className="flex flex-row gap-4 mb-2 items-center justify-between w-full">
+            <button
+              onClick={toggleCamera}
+              className="w-full bg-white hover:bg-teal-600 text-black hover:text-white font-bold py-2 px-4 rounded flex flex-col gap-2 h-full border border-teal-600 transition-all duration-300 ease-in-out items-center justify-center group"
+            >
+              <svg
+                className="w-[48px] h-[48px] text-teal-600 group-hover:text-white transition-all duration-300 ease-in-out"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 18V8a1 1 0 0 1 1-1h1.5l1.707-1.707A1 1 0 0 1 8.914 5h6.172a1 1 0 0 1 .707.293L17.5 7H19a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"
+                />
+                <path
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                />
+              </svg>
+
+              <p>Ambil dari Kamera</p>
+            </button>
+            <button
+              onClick={() => document.getElementById("fileInput").click()}
+              className="w-full bg-white hover:bg-teal-600 text-black hover:text-white font-bold py-2 px-4 rounded flex flex-col gap-2 h-full border border-teal-600 transition-all duration-300 ease-in-out items-center justify-center group"
+            >
+              <svg
+                className="w-[48px] h-[48px] text-teal-600 group-hover:text-white transition-all duration-300 ease-in-out"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6Zm4.996 2a1 1 0 0 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Zm-4.004 3a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 11a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Zm-4.004 3a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2h-.01ZM11 14a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-6Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+
+              <p>Pilih dari Galeri</p>
+            </button>
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            id="fileInput"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <div className="rounded-md bg-muted p-4 flex items-center justify-center w-full border border-border">
+            {isCameraActive ? (
+              <div className="w-full">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="h-auto object-cover rounded-md w-full"
+                />
+                <canvas
+                  ref={canvasRef}
+                  className="hidden"
+                  width="640"
+                  height="480"
+                ></canvas>
+              </div>
+            ) : (
+              <img
+                src={imageURL}
+                alt="Preview Gambar"
+                className="h-auto w-full object-cover rounded-md"
+              />
+            )}
+          </div>
+          {isCameraActive && (
+            <button
+              onClick={captureImage}
+              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-teal-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-teal-600 border border-teal-600"
+            >
+              📸 Capture
+            </button>
+          )}
+
+          {selectedFile && (
+            <button
+              onClick={onCancle}
+              className="inline-flex h-10 w-auto items-center justify-center rounded-md bg-red-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-red-600 border border-red-600"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={handleSubmit}
+            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-teal-600 text-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-teal-600 border border-teal-600"
+          >
+            {loading ? "Loading..." : "Unggah dan Klasifikasi"}
+          </button>
+        </div>
+
+        {!!showToast && (
+          <Toast message={showToast} onClose={() => setShowToast("")} />
+        )}
+      </div>
+    );
+  }
+
+  const style = document.createElement("style");
+  style.innerHTML = `
+    @keyframes fade-in-down {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-down {
+      animation: fade-in-down 0.3s ease-out forwards;
+    }
+    :root {
+      --background: #ffffff;
+      --foreground: #111827;
+      --muted: #f9fafb;
+      --muted-foreground: #6b7280;
+      --border: #e5e7eb;
+    }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background-color: var(--muted);
+    }
+  `;
+  document.head.appendChild(style);
+
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<ScanPage />);
+</script>
+{% endblock %}
