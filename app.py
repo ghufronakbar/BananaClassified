@@ -36,11 +36,20 @@ def scan():
 
 @app.route('/result')
 def result():
-    print(request.args)
-    filename = request.args.get('filename')
-    if filename:
-        return render_template('result.html', filename=filename)
-    return "No file uploaded", 400
+    return render_template('result.html')
+    # print(request.args)
+    # filename = request.args.get('filename')
+    # if filename:
+    #     return render_template('result.html', filename=filename)
+    # return "No file uploaded", 400
+    
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
 
 if __name__ == '__main__':
     port = int(os.getenv("FLASK_PORT", 5000))
